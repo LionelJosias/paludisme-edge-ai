@@ -1,0 +1,9 @@
+ultralytics==8.4.115
+torch
+torchvision
+opencv-python
+numpy
+matplotlib
+pandas
+onnx
+onnxruntime

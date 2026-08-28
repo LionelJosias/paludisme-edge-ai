@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+title: "Paludisme Edge AI — YOLOv8n Float16 sur Raspberry Pi 3 B+"
+type: software
+abstract: "Détection automatisée de cellules et parasites du paludisme dans des images de frottis sanguins épais, avec entraînement YOLOv8n et inférence Edge sur Raspberry Pi 3 B+."
+license: MIT
+version: 1.0.0
+date-released: 2026-08-28
+authors:
+  - family-names: "Auteur"
+    given-names: "Projet académique"
