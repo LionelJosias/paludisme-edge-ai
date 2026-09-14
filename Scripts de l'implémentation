@@ -1,0 +1,29 @@
+Les scripts sont organisés selon les différentes étapes de la chaîne expérimentale, depuis la préparation du jeu de données jusqu'à l'évaluation du système sur la plateforme Raspberry Pi 3 B+.
+
+### Scripts de l'implémentation
+
+| Phase | Opération | Script |
+|---|---|---|
+| **Préparation du dataset** | Vérification du dataset | `kaggle/01_validate_dataset.py` |
+| | Préparation et nettoyage | `kaggle/02_prepare_dataset.py` |
+| **Entraînement** | Entraînement YOLOv8n | `kaggle/03_train_yolov8n.py` |
+| | Entraînement YOLO11n | `kaggle/04_train_yolo11n.py` |
+| | Entraînement YOLOv26n | `kaggle/05_train_yolov26n.py` |
+| **Évaluation** | Évaluation comparative | `kaggle/06_evaluate_models.py` |
+| | Matrices de confusion | `kaggle/07_confusion_matrix.py` |
+| | Courbes de performances | `kaggle/08_performance_curves.py` |
+| **Exportation et optimisation** | Exportation ONNX | `kaggle/09_export_onnx.py` |
+| | Exportation TensorFlow Lite Float16 | `kaggle/10_export_tflite_float16.py` |
+| | Quantification Dynamic Range | `kaggle/11_export_tflite_dynamic_range.py` |
+| | Quantification INT8 | `kaggle/12_export_tflite_int8.py` |
+| **Déploiement Raspberry Pi** | Informations système | `raspberry_pi/01_system_info.py` |
+| | Vérification du modèle TFLite/LiteRT | `raspberry_pi/02_check_model.py` |
+| | Inférence | `raspberry_pi/03_inference.py` |
+| **Évaluation embarquée** | Benchmark général | `raspberry_pi/04_benchmark.py` |
+| | Benchmark multi-résolutions | `raspberry_pi/05_benchmark_resolutions.py` |
+| | Influence du nombre de threads | `raspberry_pi/06_compare_threads.py` |
+| | Surveillance de la RAM | `raspberry_pi/07_memory_monitor.py` |
+| | Évaluation du prétraitement | `raspberry_pi/08_image_preprocessing.py` |
+| | Évaluation du post-traitement/NMS | `raspberry_pi/09_postprocessing.py` |
+| | Mesure de la consommation énergétique | `raspberry_pi/10_energy_measurement.py` |
+| | Exécution de l'ensemble des benchmarks | `raspberry_pi/11_run_all_benchmarks.sh` |
