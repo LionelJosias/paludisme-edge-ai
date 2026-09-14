@@ -15,10 +15,12 @@ Projet académique consacré à la **détection automatisée des parasites du pa
 
 Le projet couvre l'ensemble de la chaîne de traitement, depuis la préparation des données jusqu'à l'inférence sur une plateforme Edge.
 
-### Chaîne de traitement
+Chaîne de traitement et organisation du dépôt
 
+Le projet est organisé selon les différentes étapes de la chaîne expérimentale : préparation des données, entraînement, évaluation, exportation, optimisation, déploiement et évaluation sur Raspberry Pi 3 B+.
+
+```text
 paludisme-edge-ai/
-│
 ├── README.md
 ├── CITATION.cff
 ├── LICENSE
@@ -65,6 +67,11 @@ paludisme-edge-ai/
 │   ├── 10_energy_measurement.py
 │   └── 11_run_all_benchmarks.sh
 │
+├── src/
+│   ├── preprocessing.py
+│   ├── postprocessing.py
+│   └── utils.py
+│
 ├── web/
 │   ├── app.py
 │   ├── templates/
@@ -72,19 +79,14 @@ paludisme-edge-ai/
 │   └── static/
 │       └── style.css
 │
-├── src/
-│   ├── preprocessing.py
-│   ├── inference.py
-│   ├── postprocessing.py
-│   └── utils.py
-│
 ├── results/
-│   ├── README.md
-│   └── .gitkeep
+│   └── README.md
 │
-└── docs/
-    ├── reproduction.md
-    ├── architecture.md
-    ├── deployment_raspberry_pi.md
-    ├── benchmark.md
-    └── troubleshooting.md
+├── docs/
+│   ├── reproduction.md
+│   ├── architecture.md
+│   ├── deployment_raspberry_pi.md
+│   ├── benchmark.md
+│   └── troubleshooting.md
+│
+└── .gitkeep
