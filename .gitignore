@@ -1,18 +1,131 @@
+# ============================================================
+# Python
+# ============================================================
+
 __pycache__/
 *.py[cod]
+*$py.class
+
+# Environnements virtuels
 venv/
 .venv/
-runs/
+env/
+.env/
+
+# Fichiers de configuration locaux
+*.local
+*.log
+
+
+# ============================================================
+# Modèles et fichiers volumineux
+# ============================================================
+
+# Poids des modèles
 *.pt
+*.pth
+
+# Modèles exportés
 *.onnx
 *.tflite
+*.h5
+*.keras
+
+# Fichiers TensorFlow / LiteRT générés
+*.pb
+
+
+# ============================================================
+# Données
+# ============================================================
+
+# Données originales / brutes
 data/raw/
+
+# Jeux de données préparés
 data/train/
 data/valid/
 data/test/
+
+# Fichiers temporaires de données
+*.zip
+*.tar
+*.tar.gz
+
+
+# ============================================================
+# Entraînement YOLO
+# ============================================================
+
+runs/
+
+# Fichiers générés par Ultralytics
+wandb/
+mlruns/
+
+
+# ============================================================
+# Résultats générés automatiquement
+# ============================================================
+
+# Uploads de l'interface Web
 results/web_uploads/
+
+# Images produites par l'interface Web
 results/web_results/
-*.csv
+
+# Fichiers temporaires
+results/tmp/
+
+# NOTE :
+# Les fichiers CSV de benchmark ne sont PAS ignorés
+# afin de permettre leur conservation dans le dépôt.
+
+
+# ============================================================
+# Jupyter / Kaggle
+# ============================================================
+
+.ipynb_checkpoints/
+
+# Fichiers temporaires
+*.tmp
+
+
+# ============================================================
+# Système
+# ============================================================
+
 .DS_Store
 Thumbs.db
+desktop.ini
+
+
+# ============================================================
+# IDE
+# ============================================================
+
+.vscode/
+.idea/
+
+# Exceptions éventuelles :
+# !.vscode/settings.json
+
+
+# ============================================================
+# Secrets
+# ============================================================
+
 .env
+.env.*
+!.env.example
+
+
+# ============================================================
+# Fichiers de sauvegarde
+# ============================================================
+
+*~
+*.bak
+*.swp
+*.swo
