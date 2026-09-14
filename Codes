@@ -1,53 +1,570 @@
 kaggle/01_validate_dataset.py
 
-#!/usr/bin/env python3
-import argparse
-from pathlib import Path
-from PIL import Image
-EXT={".jpg",".jpeg",".png",".bmp",".webp"}
-p=argparse.ArgumentParser(); p.add_argument("--images",required=True); p.add_argument("--labels",required=True); p.add_argument("--nc",type=int,default=2); a=p.parse_args()
-ims={x.stem:x for x in Path(a.images).rglob("*") if x.suffix.lower() in EXT}; labs={x.stem:x for x in Path(a.labels).rglob("*.txt")}
-counts=[0]*a.nc; boxes=0; bad=[]
-for s,l in labs.items():
- try:
-  for n,line in enumerate(l.read_text().splitlines(),1):
-   if not line.strip(): continue
-   q=line.split(); c=int(q[0]); v=list(map(float,q[1:])); assert len(q)==5 and 0<=c<a.nc and all(0<=x<=1 for x in v)
-   counts[c]+=1; boxes+=1
- except Exception as e: bad.append((str(l),str(e)))
-print("Images:",len(ims)); print("Labels:",len(labs)); print("Missing labels:",len(set(ims)-set(labs))); print("Orphan labels:",len(set(labs)-set(ims))); print("Boxes:",boxes); print("Classes:",counts); print("Invalid labels:",len(bad))
-for s,x in ims.items():
- try: Image.open(x).verify()
- except Exception as e: print("Invalid image:",x,e)
+# This Python 3 environment comes with many helpful analytics libraries installed
+# It is defined by the kaggle/python Docker image: https://github.com/kaggle/docker-python
+# For example, here's several helpful packages to load
+import numpy as np # linear algebra
+import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
+# Input data files are available in the read-only "../input/" directory
+# For example, running this (by clicking run or pressing Shift+Enter) will list all files under the input directory
+import os
+for dirname, _, filenames in os.walk('/kaggle/input'):
+    for filename in filenames:
+        print(os.path.join(dirname, filename))
+# You can write up to 20GB to the current directory (/kaggle/working/) that gets preserved as output when you create a version using "Save & Run All" 
+# You can also write temporary files to /kaggle/temp/, but they won't be saved outside of the current session
+# Use the kagglehub client library to attach Kaggle resources like competitions, datasets, and models to your session
+# Learn more about kagglehub: https://github.com/Kaggle/kagglehub/blob/main/README.md
+import kagglehub
+# kagglehub.dataset_download('<owner>/<dataset-slug>')
+
+
+import os
+# Afficher les datasets disponibles
+print("Contenu de /kaggle/input :")
+for item in os.listdir("/kaggle/input"):
+    print(" -", item)
+
+
+import os
+dataset_path = "/kaggle/input/datasets"
+print("Chemin :", dataset_path)
+print("Existe :", os.path.exists(dataset_path))
+print("\nContenu de /kaggle/input/datasets :")
+for item in os.listdir(dataset_path):
+    print(" -", item)
+
+
+import os
+dataset_path = "/kaggle/input/datasets/tandem03"
+print("Chemin :", dataset_path)
+print("Existe :", os.path.exists(dataset_path))
+print("\nContenu de tandem03 :")
+for item in os.listdir(dataset_path):
+    full_path = os.path.join(dataset_path, item)
+    if os.path.isdir(full_path):
+        print(f" [DOSSIER] {item}")
+    else:
+        size_mb = os.path.getsize(full_path) / (1024**2)
+        print(f" [FICHIER] {item} — {size_mb:.2f} MB")
+
+
+import os
+dataset_path = "/kaggle/input/datasets/tandem03/lacuna-malaria-datasets"
+print("Chemin :", dataset_path)
+print("Existe :", os.path.exists(dataset_path))
+print("\nContenu de lacuna-malaria-datasets :")
+for item in os.listdir(dataset_path):
+    full_path = os.path.join(dataset_path, item)
+    if os.path.isdir(full_path):
+        print(f" [DOSSIER] {item}")
+    else:
+        size_mb = os.path.getsize(full_path) / (1024**2)
+        print(f" [FICHIER] {item} — {size_mb:.2f} MB")
+
+
+import os
+dataset_path = "/kaggle/input/datasets/tandem03/lacuna-malaria-datasets/Thick_Ghana"
+print("Chemin :", dataset_path)
+print("Existe :", os.path.exists(dataset_path))
+print("\nContenu de Thick_Ghana :")
+for root, dirs, files in os.walk(dataset_path):
+    level = root.replace(dataset_path, "").count(os.sep)
+    indent = "    " * level
+    print(f"{indent}[DOSSIER] {os.path.basename(root)}/")
+    for file in files[:10]:
+        print(f"{indent}    [FICHIER] {file}")
+    if len(files) > 10:
+        print(f"{indent}    ... ({len(files)} fichiers au total)")
+
+
+import os
+images_dir = "/kaggle/input/datasets/tandem03/lacuna-malaria-datasets/Thick_Ghana/Ghana/Thick/images"
+labels_dir = "/kaggle/input/datasets/tandem03/lacuna-malaria-datasets/Thick_Ghana/Ghana/Thick/labels_yolo"
+images = {
+    os.path.splitext(f)[0]
+    for f in os.listdir(images_dir)
+    if f.lower().endswith((".jpg", ".jpeg", ".png"))
+}
+labels = {
+    os.path.splitext(f)[0]
+    for f in os.listdir(labels_dir)
+    if f.lower().endswith(".txt")
+}
+images_without_labels = images - labels
+labels_without_images = labels - images
+print("Nombre d'images :", len(images))
+print("Nombre de labels :", len(labels))
+print("\nImages sans label :", len(images_without_labels))
+print("Labels sans image :", len(labels_without_images))
+if images_without_labels:
+    print("\nExemples d'images sans label :")
+    print(list(images_without_labels)[:10])
+if labels_without_images:
+    print("\nExemples de labels sans image :")
+    print(list(labels_without_images)[:10])
+
 
 
 kaggle/02_prepare_dataset.py
 
-#!/usr/bin/env python3
-import argparse,random,shutil
-from pathlib import Path
-from PIL import Image
-EXT={".jpg",".jpeg",".png",".bmp",".webp"}
-p=argparse.ArgumentParser(); p.add_argument("--images",required=True); p.add_argument("--labels",required=True); p.add_argument("--output",required=True); p.add_argument("--seed",type=int,default=42); a=p.parse_args()
-im={x.stem:x for x in Path(a.images).rglob("*") if x.suffix.lower() in EXT}; la={x.stem:x for x in Path(a.labels).rglob("*.txt")}; pairs=[]
-for s in sorted(set(im)&set(la)):
- try: Image.open(im[s]).verify(); pairs.append((im[s],la[s]))
- except: pass
-random.Random(a.seed).shuffle(pairs); n=len(pairs); cuts=[int(.70*n),int(.85*n)]; groups={"train":pairs[:cuts[0]],"val":pairs[cuts[0]:cuts[1]],"test":pairs[cuts[1]:]}; out=Path(a.output)
-for split,items in groups.items():
- (out/split/'images').mkdir(parents=True,exist_ok=True); (out/split/'labels').mkdir(parents=True,exist_ok=True)
- for x,y in items: shutil.copy2(x,out/split/'images'/x.name); shutil.copy2(y,out/split/'labels'/f'{x.stem}.txt')
-(out/'data.yaml').write_text(f'path: {out.resolve()}\ntrain: train/images\nval: val/images\ntest: test/images\nnc: 2\nnames: [cell, parasite]\n')
-print({k:len(v) for k,v in groups.items()})
+import os
+images_dir = "/kaggle/input/datasets/tandem03/lacuna-malaria-datasets/Thick_Ghana/Ghana/Thick/images"
+labels_dir = "/kaggle/input/datasets/tandem03/lacuna-malaria-datasets/Thick_Ghana/Ghana/Thick/labels_yolo"
+images = {
+    os.path.splitext(f)[0]
+    for f in os.listdir(images_dir)
+    if f.lower().endswith((".jpg", ".jpeg", ".png"))
+}
+labels = {
+    os.path.splitext(f)[0]
+    for f in os.listdir(labels_dir)
+    if f.lower().endswith(".txt")
+}
+images_without_labels = images - labels
+labels_without_images = labels - images
+print("Nombre d'images :", len(images))
+print("Nombre de labels :", len(labels))
+print("\nImages sans label :", len(images_without_labels))
+print("Labels sans image :", len(labels_without_images))
+if images_without_labels:
+    print("\nExemples d'images sans label :")
+    print(list(images_without_labels)[:10])
+if labels_without_images:
+    print("\nExemples de labels sans image :")
+    print(list(labels_without_images)[:10])
 
 
+import os
+labels_dir = "/kaggle/input/datasets/tandem03/lacuna-malaria-datasets/Thick_Ghana/Ghana/Thick/labels_yolo"
+empty_labels = []
+for filename in os.listdir(labels_dir):
+    if not filename.endswith(".txt"):
+        continue
+    filepath = os.path.join(labels_dir, filename)
+    with open(filepath, "r") as f:
+        content = f.read().strip()
+    if not content:
+        empty_labels.append(filename)
+print("Labels vides :", len(empty_labels))
+for filename in empty_labels:
+    print(" -", filename)
 kaggle/03_train_yolov8n.py
 
-#!/usr/bin/env python3
-import argparse
-from ultralytics import YOLO
-p=argparse.ArgumentParser(); p.add_argument("--data",required=True); p.add_argument("--weights",default="yolov8n.pt"); p.add_argument("--epochs",type=int,default=100); p.add_argument("--imgsz",type=int,default=320); p.add_argument("--batch",type=int,default=-1); p.add_argument("--device",default=""); p.add_argument("--name",default="yolov8n"); p.add_argument("--seed",type=int,default=42); a=p.parse_args()
-YOLO(a.weights).train(data=a.data,epochs=a.epochs,imgsz=a.imgsz,batch=a.batch,device=a.device,seed=a.seed,project="runs/detect",name=a.name)
+
+from PIL import Image
+import os
+import matplotlib.pyplot as plt
+images_dir = "/kaggle/input/datasets/tandem03/lacuna-malaria-datasets/Thick_Ghana/Ghana/Thick/images"
+for image_id in ["435", "429"]:
+    image_path = os.path.join(images_dir, image_id + ".jpg")   
+    img = Image.open(image_path)    
+    print(f"{image_id}.jpg")
+    print("  Dimensions :", img.size)
+    print("  Mode :", img.mode) 
+    plt.figure(figsize=(8, 8))
+    plt.imshow(img)
+    plt.title(f"Image {image_id}")
+    plt.axis("off")
+    plt.show()
+
+
+# ============================================================
+# INSPECTION APPROFONDIE DU DATASET LACUNA - THICK GHANA
+# 3045 images + 3045 annotations YOLO
+# IMPORTANT : ce script ne modifie aucun fichier
+# ============================================================
+import os
+import hashlib
+from collections import Counter, defaultdict
+from PIL import Image
+# ------------------------------------------------------------
+# 1. CHEMINS
+# ------------------------------------------------------------
+dataset_path = "/kaggle/input/datasets/tandem03/lacuna-malaria-datasets/Thick_Ghana/Ghana/Thick"
+images_dir = os.path.join(dataset_path, "images")
+labels_dir = os.path.join(dataset_path, "labels_yolo")
+print("=" * 70)
+print("INSPECTION APPROFONDIE DU DATASET")
+print("=" * 70)
+print("\nDataset :", dataset_path)
+print("Images  :", images_dir)
+print("Labels  :", labels_dir)
+# ------------------------------------------------------------
+# 2. RECUPERATION DES FICHIERS
+# ------------------------------------------------------------
+image_files = sorted([
+    f for f in os.listdir(images_dir)
+    if f.lower().endswith((".jpg", ".jpeg", ".png"))
+])
+label_files = sorted([
+    f for f in os.listdir(labels_dir)
+    if f.lower().endswith(".txt")
+])
+image_ids = {
+    os.path.splitext(f)[0]
+    for f in image_files
+}
+]
+label_ids = {
+    os.path.splitext(f)[0]
+    for f in label_files
+}
+images_without_labels = sorted(image_ids - label_ids)
+labels_without_images = sorted(label_ids - image_ids)
+print("\n" + "=" * 70)
+print("1. CORRESPONDANCE IMAGES / LABELS")
+print("=" * 70)
+print(f"Nombre d'images       : {len(image_files)}")
+print(f"Nombre de labels      : {len(label_files)}")
+print(f"Images sans label     : {len(images_without_labels)}")
+print(f"Labels sans image     : {len(labels_without_images)}")
+if images_without_labels:
+    print("\nExemples images sans label :", images_without_labels[:20])
+if labels_without_images:
+    print("\nExemples labels sans image :", labels_without_images[:20])
+# ------------------------------------------------------------
+# 3. INSPECTION DES IMAGES
+# ------------------------------------------------------------
+print("\n" + "=" * 70)
+print("2. INSPECTION DES 3045 IMAGES")
+print("=" * 70)
+corrupted_images = []
+image_dimensions = Counter()
+image_modes = Counter()
+image_extensions = Counter()
+image_sizes_bytes = []
+valid_images = 0
+# Pour détecter les doublons exacts
+hash_to_files = defaultdict(list)
+for i, filename in enumerate(image_files, start=1):
+    filepath = os.path.join(images_dir, filename)
+    extension = os.path.splitext(filename)[1].lower()
+    image_extensions[extension] += 1
+    try:
+        # Première vérification
+        with Image.open(filepath) as img:
+            img.verify()
+        # Réouverture obligatoire après verify()
+        with Image.open(filepath) as img:
+            width, height = img.size
+            mode = img.mode
+        valid_images += 1
+        image_dimensions[(width, height)] += 1
+        image_modes[mode] += 1
+        file_size = os.path.getsize(filepath)
+        image_sizes_bytes.append(file_size)
+        # Hash MD5 pour détecter les doublons exacts
+        md5 = hashlib.md5()
+        with open(filepath, "rb") as f:
+            for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                md5.update(chunk)
+        hash_to_files[md5.hexdigest()].append(filename)
+    except Exception as e:
+        corrupted_images.append((filename, str(e)))
+    # Progression
+    if i % 500 == 0 or i == len(image_files):
+        print(f"Progression : {i}/{len(image_files)} images inspectées")
+print("\nImages valides       :", valid_images)
+print("Images corrompues   :", len(corrupted_images))
+if corrupted_images:
+    print("\nImages corrompues :")
+    for filename, error in corrupted_images[:20]:
+        print(f" - {filename} : {error}")
+print("\nExtensions :")
+for ext, count in sorted(image_extensions.items()):
+    print(f"  {ext} : {count}")
+print("\nModes d'image :")
+for mode, count in sorted(image_modes.items()):
+    print(f"  {mode} : {count}")
+print("\nDimensions des images :")
+for dimension, count in image_dimensions.most_common():
+    print(f"  {dimension[0]} x {dimension[1]} : {count}")
+# ------------------------------------------------------------
+# 4. TAILLE DES IMAGES
+# ------------------------------------------------------------
+if image_sizes_bytes:
+    total_size_mb = sum(image_sizes_bytes) / (1024 ** 2)
+    mean_size_mb = sum(image_sizes_bytes) / len(image_sizes_bytes) / (1024 ** 2)
+    min_size_mb = min(image_sizes_bytes) / (1024 ** 2)
+    max_size_mb = max(image_sizes_bytes) / (1024 ** 2)
+    print("\n" + "=" * 70)
+    print("3. TAILLE DES IMAGES")
+    print("=" * 70)
+    print(f"Taille totale : {total_size_mb:.2f} MB")
+    print(f"Taille moyenne : {mean_size_mb:.3f} MB")
+    print(f"Taille minimale : {min_size_mb:.3f} MB")
+    print(f"Taille maximale : {max_size_mb:.3f} MB")
+# ------------------------------------------------------------
+# 5. DOUBLONS EXACTS
+# ------------------------------------------------------------
+duplicate_groups = [
+    files for files in hash_to_files.values()
+    if len(files) > 1
+]
+duplicate_image_count = sum(len(files) for files in duplicate_groups)
+print("\n" + "=" * 70)
+print("4. DOUBLONS EXACTS")
+print("=" * 70)
+print("Groupes de doublons :", len(duplicate_groups))
+print("Nombre total d'images concernées :", duplicate_image_count)
+if duplicate_groups:
+    print("\nExemples :")
+    for group in duplicate_groups[:10]:
+        print(" -", group)
+# ------------------------------------------------------------
+# 6. INSPECTION COMPLETE DES LABELS
+# ------------------------------------------------------------
+print("\n" + "=" * 70)
+print("5. INSPECTION DES ANNOTATIONS YOLO")
+print("=" * 70)
+class_counts = Counter()
+images_per_class = Counter()
+objects_per_image = Counter()
+empty_labels = []
+malformed_lines = []
+invalid_class_ids = []
+coordinates_out_of_range = []
+invalid_box_dimensions = []
+boxes_outside_image = []
+total_objects = 0
+images_with_objects = 0
+# Pour connaître les classes présentes dans chaque image
+classes_by_image = defaultdict(set)
+for filename in label_files:
+    filepath = os.path.join(labels_dir, filename)
+    image_id = os.path.splitext(filename)[0]
+    with open(filepath, "r", encoding="utf-8") as f:
+        lines = [line.strip() for line in f if line.strip()]
+    # Label vide
+    if len(lines) == 0:
+        empty_labels.append(filename)
+        objects_per_image[image_id] = 0
+        continue
+    image_object_count = 0
+    image_classes = set()
+    for line_number, line in enumerate(lines, start=1):
+        values = line.split()
+        # Format attendu :
+        # class x_center y_center width height
+        if len(values) != 5:
+            malformed_lines.append(
+                (filename, line_number, line)
+            )
+            continue
+        try:
+            class_id = int(values[0])
+            x_center = float(values[1])
+            y_center = float(values[2])
+            width = float(values[3])
+            height = float(values[4])
+        except ValueError:
+            malformed_lines.append(
+                (filename, line_number, line)
+            )
+          continue
+        # ----------------------------------------------------
+        # Classe
+        # ----------------------------------------------------
+        if class_id < 0:
+            invalid_class_ids.append(
+                (filename, line_number, class_id)
+            )
+        # ----------------------------------------------------
+        # Coordonnées individuelles
+        # ----------------------------------------------------
+        coords = [x_center, y_center, width, height]
+        if not all(0 <= x <= 1 for x in coords):
+
+            coordinates_out_of_range.append(
+                (filename, line_number, coords)
+            )
+        # ----------------------------------------------------
+        # Dimensions de bounding box
+        # ----------------------------------------------------
+        if width <= 0 or height <= 0:
+            invalid_box_dimensions.append(
+                (filename, line_number, width, height)
+            )
+        # ----------------------------------------------------
+        # Vérification réelle des limites de la bounding box
+        # ----------------------------------------------------
+       x_min = x_center - width / 2
+        x_max = x_center + width / 2
+        y_min = y_center - height / 2
+        y_max = y_center + height / 2
+        if (
+            x_min < 0 or
+            x_max > 1 or
+            y_min < 0 or
+            y_max > 1
+        ):
+            boxes_outside_image.append(
+                (
+                    filename,
+                    line_number,
+                    x_center,
+                    y_center,
+                    width,
+                    height,
+                    x_min,
+                    y_min,
+                    x_max,
+                    y_max
+                )
+            )
+        # ----------------------------------------------------
+        # Comptage
+        # ----------------------------------------------------
+        class_counts[class_id] += 1
+        total_objects += 1
+        image_object_count += 1
+        image_classes.add(class_id)
+    objects_per_image[image_id] = image_object_count
+    if image_object_count > 0:
+        images_with_objects += 1
+        for class_id in image_classes:
+            images_per_class[class_id] += 1
+        classes_by_image[image_id] = image_classes
+# ------------------------------------------------------------
+# 7. STATISTIQUES DES LABELS
+# ------------------------------------------------------------
+print("Nombre total d'objets :", total_objects)
+print("\nClasses détectées :")
+for class_id, count in sorted(class_counts.items()):
+    percentage_objects = (
+        100 * count / total_objects
+        if total_objects > 0 else 0
+    )
+    print(
+        f"  Classe {class_id} : "
+        f"{count} objets "
+        f"({percentage_objects:.2f} %)"
+    )
+print("\nNombre d'images contenant chaque classe :")
+for class_id, count in sorted(images_per_class.items()):
+
+    print(
+        f"  Classe {class_id} : "
+        f"{count} images"
+    )
+print("\nImages avec au moins un objet :", images_with_objects)
+print("Images sans objet              :", len(empty_labels))
+# ------------------------------------------------------------
+# 8. ERREURS D'ANNOTATIONS
+# ------------------------------------------------------------
+print("\n" + "=" * 70)
+print("6. CONTROLE DE VALIDITE DES BOUNDING BOXES")
+print("=" * 70)
+print("Labels vides                  :", len(empty_labels))
+print("Lignes mal formées            :", len(malformed_lines))
+print("Classes invalides             :", len(invalid_class_ids))
+print("Coordonnées hors [0,1]        :", len(coordinates_out_of_range))
+print("Largeur/hauteur invalides     :", len(invalid_box_dimensions))
+print("Boxes dépassant l'image       :", len(boxes_outside_image))
+# ------------------------------------------------------------
+# 9. DÉTAIL DES PROBLEMES
+# ------------------------------------------------------------
+if empty_labels:
+    print("\nLabels vides :")
+    for filename in empty_labels[:20]:
+        print(" -", filename)
+if malformed_lines:
+    print("\nExemples de lignes mal formées :")
+    for item in malformed_lines[:10]:
+        print(" -", item)
+if invalid_class_ids:
+    print("\nExemples de classes invalides :")
+    for item in invalid_class_ids[:10]:
+        print(" -", item)
+if coordinates_out_of_range:
+    print("\nExemples de coordonnées hors limites :")
+    for item in coordinates_out_of_range[:10]:
+        print(" -", item)
+if invalid_box_dimensions:
+    print("\nExemples de dimensions invalides :")
+    for item in invalid_box_dimensions[:10]:
+        print(" -", item)
+if boxes_outside_image:
+    print("\nExemples de boxes dépassant l'image :")
+    for item in boxes_outside_image[:10]:
+        print(" -", item)
+# ------------------------------------------------------------
+# 10. STATISTIQUES OBJETS PAR IMAGE
+# ------------------------------------------------------------
+object_counts = list(objects_per_image.values())
+if object_counts:
+    mean_objects = sum(object_counts) / len(object_counts)
+    min_objects = min(object_counts)
+    max_objects = max(object_counts)
+    distribution_objects = Counter(object_counts)
+    print("\n" + "=" * 70)
+    print("7. DISTRIBUTION DU NOMBRE D'OBJETS PAR IMAGE")
+    print("=" * 70)
+    print(f"Moyenne d'objets/image : {mean_objects:.2f}")
+    print(f"Minimum                 : {min_objects}")
+    print(f"Maximum                 : {max_objects}")
+    print("\nDistribution :")
+    for n_objects, count in sorted(distribution_objects.items()):
+        print(
+            f"  {n_objects} objet(s) : "
+            f"{count} image(s)"
+        )
+# ------------------------------------------------------------
+# 11. CONTROLE FINAL
+# ------------------------------------------------------------
+print("\n" + "=" * 70)
+print("8. RAPPORT FINAL D'INSPECTION")
+print("=" * 70)
+checks = {
+    "Nombre d'images = 3045":
+        len(image_files) == 3045,
+    "Nombre de labels = 3045":
+        len(label_files) == 3045,
+    "Correspondance images/labels":
+        len(images_without_labels) == 0
+        and len(labels_without_images) == 0,
+    "Toutes les images lisibles":
+        len(corrupted_images) == 0,
+    "Annotations correctement formées":
+        len(malformed_lines) == 0,
+    "Coordonnées dans [0,1]":
+        len(coordinates_out_of_range) == 0,
+    "Largeurs/hauteurs positives":
+        len(invalid_box_dimensions) == 0,
+    "Boxes entièrement dans l'image":
+        len(boxes_outside_image) == 0
+}
+for check, result in checks.items():
+    status = "✓ VALIDÉ" if result else "✗ PROBLÈME"
+    print(f"{status} : {check}")
+# ------------------------------------------------------------
+# 12. CONCLUSION AUTOMATIQUE
+# ------------------------------------------------------------
+print("\n" + "=" * 70)
+print("CONCLUSION")
+print("=" * 70)
+if all(checks.values()):
+    print("✓ Les contrôles structurels principaux sont VALIDÉS.")
+else:
+    print("✗ L'inspection n'est PAS encore validée.")
+    print("  Les anomalies doivent être analysées avant toute modification.")
+if len(empty_labels) > 0:
+    print(
+        f"\n⚠ Attention : {len(empty_labels)} label(s) vide(s) "
+        "ont été détecté(s)."
+    )
+    print(
+        "  Ils doivent être interprétés avant de décider "
+        "de les conserver ou de les supprimer."
+    )
+if duplicate_groups:
+    print(
+        f"\n⚠ {len(duplicate_groups)} groupe(s) de doublons exacts "
+        "ont été détectés."
+    )
+print("\nInspection terminée.")
+print("AUCUN fichier n'a été modifié.")
 
 
 kaggle/04_train_yolo11n.py
