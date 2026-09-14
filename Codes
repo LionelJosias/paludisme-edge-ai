@@ -1,0 +1,321 @@
+kaggle/01_validate_dataset.py
+
+#!/usr/bin/env python3
+import argparse
+from pathlib import Path
+from PIL import Image
+EXT={".jpg",".jpeg",".png",".bmp",".webp"}
+p=argparse.ArgumentParser(); p.add_argument("--images",required=True); p.add_argument("--labels",required=True); p.add_argument("--nc",type=int,default=2); a=p.parse_args()
+ims={x.stem:x for x in Path(a.images).rglob("*") if x.suffix.lower() in EXT}; labs={x.stem:x for x in Path(a.labels).rglob("*.txt")}
+counts=[0]*a.nc; boxes=0; bad=[]
+for s,l in labs.items():
+ try:
+  for n,line in enumerate(l.read_text().splitlines(),1):
+   if not line.strip(): continue
+   q=line.split(); c=int(q[0]); v=list(map(float,q[1:])); assert len(q)==5 and 0<=c<a.nc and all(0<=x<=1 for x in v)
+   counts[c]+=1; boxes+=1
+ except Exception as e: bad.append((str(l),str(e)))
+print("Images:",len(ims)); print("Labels:",len(labs)); print("Missing labels:",len(set(ims)-set(labs))); print("Orphan labels:",len(set(labs)-set(ims))); print("Boxes:",boxes); print("Classes:",counts); print("Invalid labels:",len(bad))
+for s,x in ims.items():
+ try: Image.open(x).verify()
+ except Exception as e: print("Invalid image:",x,e)
+
+
+kaggle/02_prepare_dataset.py
+
+#!/usr/bin/env python3
+import argparse,random,shutil
+from pathlib import Path
+from PIL import Image
+EXT={".jpg",".jpeg",".png",".bmp",".webp"}
+p=argparse.ArgumentParser(); p.add_argument("--images",required=True); p.add_argument("--labels",required=True); p.add_argument("--output",required=True); p.add_argument("--seed",type=int,default=42); a=p.parse_args()
+im={x.stem:x for x in Path(a.images).rglob("*") if x.suffix.lower() in EXT}; la={x.stem:x for x in Path(a.labels).rglob("*.txt")}; pairs=[]
+for s in sorted(set(im)&set(la)):
+ try: Image.open(im[s]).verify(); pairs.append((im[s],la[s]))
+ except: pass
+random.Random(a.seed).shuffle(pairs); n=len(pairs); cuts=[int(.70*n),int(.85*n)]; groups={"train":pairs[:cuts[0]],"val":pairs[cuts[0]:cuts[1]],"test":pairs[cuts[1]:]}; out=Path(a.output)
+for split,items in groups.items():
+ (out/split/'images').mkdir(parents=True,exist_ok=True); (out/split/'labels').mkdir(parents=True,exist_ok=True)
+ for x,y in items: shutil.copy2(x,out/split/'images'/x.name); shutil.copy2(y,out/split/'labels'/f'{x.stem}.txt')
+(out/'data.yaml').write_text(f'path: {out.resolve()}\ntrain: train/images\nval: val/images\ntest: test/images\nnc: 2\nnames: [cell, parasite]\n')
+print({k:len(v) for k,v in groups.items()})
+
+
+kaggle/03_train_yolov8n.py
+
+#!/usr/bin/env python3
+import argparse
+from ultralytics import YOLO
+p=argparse.ArgumentParser(); p.add_argument("--data",required=True); p.add_argument("--weights",default="yolov8n.pt"); p.add_argument("--epochs",type=int,default=100); p.add_argument("--imgsz",type=int,default=320); p.add_argument("--batch",type=int,default=-1); p.add_argument("--device",default=""); p.add_argument("--name",default="yolov8n"); p.add_argument("--seed",type=int,default=42); a=p.parse_args()
+YOLO(a.weights).train(data=a.data,epochs=a.epochs,imgsz=a.imgsz,batch=a.batch,device=a.device,seed=a.seed,project="runs/detect",name=a.name)
+
+
+kaggle/04_train_yolo11n.py
+
+#!/usr/bin/env python3
+import argparse
+from ultralytics import YOLO
+p=argparse.ArgumentParser(); p.add_argument("--data",required=True); p.add_argument("--weights",default="yolo11n.pt"); p.add_argument("--epochs",type=int,default=100); p.add_argument("--imgsz",type=int,default=320); p.add_argument("--batch",type=int,default=-1); p.add_argument("--device",default=""); p.add_argument("--name",default="yolo11n"); p.add_argument("--seed",type=int,default=42); a=p.parse_args()
+YOLO(a.weights).train(data=a.data,epochs=a.epochs,imgsz=a.imgsz,batch=a.batch,device=a.device,seed=a.seed,project="runs/detect",name=a.name)
+
+
+kaggle/05_train_yolov26n.py
+
+#!/usr/bin/env python3
+import argparse
+from ultralytics import YOLO
+p=argparse.ArgumentParser(); p.add_argument("--data",required=True); p.add_argument("--weights",default="yolo26n.pt"); p.add_argument("--epochs",type=int,default=100); p.add_argument("--imgsz",type=int,default=320); p.add_argument("--batch",type=int,default=-1); p.add_argument("--device",default=""); p.add_argument("--name",default="yolov26n"); p.add_argument("--seed",type=int,default=42); a=p.parse_args()
+YOLO(a.weights).train(data=a.data,epochs=a.epochs,imgsz=a.imgsz,batch=a.batch,device=a.device,seed=a.seed,project="runs/detect",name=a.name)
+
+
+kaggle/06_evaluate_models.py
+
+#!/usr/bin/env python3
+import argparse
+from pathlib import Path
+from ultralytics import YOLO
+p=argparse.ArgumentParser(); p.add_argument("--data",required=True); p.add_argument("--models",nargs="+",required=True); p.add_argument("--imgsz",type=int,default=320); p.add_argument("--split",default="test"); a=p.parse_args()
+for w in a.models:
+ m=YOLO(w); r=m.val(data=a.data,imgsz=a.imgsz,split=a.split,plots=True,project="runs/val",name=Path(w).stem)
+ print(Path(w).stem, "Precision",r.box.mp,"Recall",r.box.mr,"mAP50",r.box.map50,"mAP50-95",r.box.map)
+
+
+kaggle/07_confusion_matrix.py
+
+#!/usr/bin/env python3
+import argparse
+from ultralytics import YOLO
+p=argparse.ArgumentParser(); p.add_argument("--weights",required=True); p.add_argument("--data",required=True); p.add_argument("--imgsz",type=int,default=320); a=p.parse_args(); YOLO(a.weights).val(data=a.data,imgsz=a.imgsz,split="test",plots=True,project="runs/confusion",name="matrix")
+
+
+kaggle/08_performance_curves.py
+
+#!/usr/bin/env python3
+import argparse
+from ultralytics import YOLO
+p=argparse.ArgumentParser(); p.add_argument("--weights",required=True); p.add_argument("--data",required=True); p.add_argument("--imgsz",type=int,default=320); a=p.parse_args(); YOLO(a.weights).val(data=a.data,imgsz=a.imgsz,split="test",plots=True,project="runs/curves",name="performance")
+
+
+kaggle/09_export_onnx.py
+
+#!/usr/bin/env python3
+import argparse
+from ultralytics import YOLO
+p=argparse.ArgumentParser(); p.add_argument("--weights",required=True); p.add_argument("--imgsz",type=int,default=320); a=p.parse_args(); print(YOLO(a.weights).export(format="onnx",imgsz=a.imgsz))
+
+
+kaggle/10_export_tflite_float16.py
+
+#!/usr/bin/env python3
+import argparse
+from ultralytics import YOLO
+p=argparse.ArgumentParser(); p.add_argument("--weights",required=True); p.add_argument("--imgsz",type=int,default=320); a=p.parse_args(); print(YOLO(a.weights).export(format="tflite",imgsz=a.imgsz,half=True))
+
+
+kaggle/11_export_tflite_dynamic_range.py
+
+#!/usr/bin/env python3
+import argparse
+from ultralytics import YOLO
+p=argparse.ArgumentParser(); p.add_argument("--weights",required=True); p.add_argument("--imgsz",type=int,default=320); a=p.parse_args(); print(YOLO(a.weights).export(format="tflite",imgsz=a.imgsz,half=False,int8=False))
+
+
+kaggle/12_export_tflite_int8.py
+
+#!/usr/bin/env python3
+import argparse
+from ultralytics import YOLO
+p=argparse.ArgumentParser(); p.add_argument("--weights",required=True); p.add_argument("--data",required=True); p.add_argument("--imgsz",type=int,default=320); a=p.parse_args(); print(YOLO(a.weights).export(format="tflite",imgsz=a.imgsz,int8=True,data=a.data))
+
+
+raspberry_pi/01_system_info.py
+
+#!/usr/bin/env python3
+import platform,os,sys,subprocess
+try:
+ import psutil
+except ImportError: psutil=None
+print("System:",platform.system(),platform.release()); print("Machine:",platform.machine()); print("Python:",sys.version.split()[0]); print("CPU cores:",os.cpu_count()); print("Board:",subprocess.getoutput("cat /proc/device-tree/model 2>/dev/null | tr -d '\0'")); print("CPU:",subprocess.getoutput("grep -m1 'Model' /proc/cpuinfo")); print("RAM MB:",round(psutil.virtual_memory().total/2**20,1) if psutil else "psutil unavailable")
+
+
+raspberry_pi/02_check_model.py
+
+#!/usr/bin/env python3
+import argparse,os
+p=argparse.ArgumentParser(); p.add_argument("--model",required=True); p.add_argument("--threads",type=int,default=4); a=p.parse_args(); print("Size MB:",os.path.getsize(a.model)/2**20)
+try: from ai_edge_litert.interpreter import Interpreter
+except ImportError: from tflite_runtime.interpreter import Interpreter
+x=Interpreter(model_path=a.model,num_threads=a.threads); x.allocate_tensors()
+for d in x.get_input_details(): print("INPUT",d["shape"],d["dtype"],d.get("quantization"))
+for d in x.get_output_details(): print("OUTPUT",d["shape"],d["dtype"],d.get("quantization"))
+
+
+raspberry_pi/03_inference.py
+
+#!/usr/bin/env python3
+import argparse,time,cv2,numpy as np
+
+def interpreter(path,threads):
+ try: from ai_edge_litert.interpreter import Interpreter
+ except ImportError: from tflite_runtime.interpreter import Interpreter
+ x=Interpreter(model_path=path,num_threads=threads); x.allocate_tensors(); return x
+
+def prep(im,s):
+ h,w=im.shape[:2]; r=min(s/w,s/h); nw,nh=round(w*r),round(h*r); z=np.full((s,s,3),114,np.uint8); q=cv2.resize(im,(nw,nh)); dx,dy=(s-nw)//2,(s-nh)//2; z[dy:dy+nh,dx:dx+nw]=q; return cv2.cvtColor(z,cv2.COLOR_BGR2RGB),r,dx,dy
+
+def dq(x,d):
+ sc,z=d.get('quantization',(0,0)); return ((x.astype(np.float32)-z)*sc if sc else x.astype(np.float32))
+
+def decode(x,conf):
+ x=np.squeeze(x);
+ if x.ndim!=2:return np.empty((0,6))
+ if x.shape[0]<x.shape[1] and x.shape[0]<=100:x=x.T
+ if x.shape[1]<6:return np.empty((0,6))
+ c=np.argmax(x[:,4:],1); s=np.max(x[:,4:],1); k=s>=conf; return np.c_[x[k,:4],s[k],c[k]]
+
+def main():
+ p=argparse.ArgumentParser(); p.add_argument('--model',required=True); p.add_argument('--image',required=True); p.add_argument('--output',default='result.jpg'); p.add_argument('--imgsz',type=int,default=320); p.add_argument('--threads',type=int,default=4); p.add_argument('--conf',type=float,default=.25); a=p.parse_args()
+ im=cv2.imread(a.image); x=interpreter(a.model,a.threads); inp=x.get_input_details()[0]; t=time.perf_counter(); z,r,dx,dy=prep(im,a.imgsz); z=z.astype(np.float32)[None]/255.; pre=(time.perf_counter()-t)*1000
+ if inp['dtype']==np.uint8:
+  sc,zp=inp.get('quantization',(1/255,0)); z=np.round(z/sc+zp).clip(0,255).astype(np.uint8)
+ x.set_tensor(inp['index'],z); t=time.perf_counter(); x.invoke(); inf=(time.perf_counter()-t)*1000; t=time.perf_counter(); d=decode(dq(x.get_tensor(x.get_output_details()[0]['index']),x.get_output_details()[0]),a.conf); post=(time.perf_counter()-t)*1000
+ for bx,by,bw,bh,s,c in d:
+  x1=int((bx-bw/2-dx)/r);y1=int((by-bh/2-dy)/r);x2=int((bx+bw/2-dx)/r);y2=int((by+bh/2-dy)/r);cv2.rectangle(im,(x1,y1),(x2,y2),(0,255,0),1);cv2.putText(im,f'{int(c)}:{s:.2f}',(x1,max(12,y1-2)),0,.4,(0,255,0),1)
+ cv2.imwrite(a.output,im); total=pre+inf+post; print(f'pre={pre:.2f} ms inference={inf:.2f} ms post={post:.2f} ms total={total:.2f} ms FPS={1000/total:.3f} detections={len(d)}')
+if __name__=='__main__':main()
+
+
+raspberry_pi/04_benchmark.py
+
+#!/usr/bin/env python3
+import argparse,csv,time,cv2,os
+from pathlib import Path
+import numpy as np
+from importlib.util import spec_from_file_location,module_from_spec
+s=spec_from_file_location('inf',Path(__file__).with_name('03_inference.py'));m=module_from_spec(s);s.loader.exec_module(m)
+p=argparse.ArgumentParser();p.add_argument('--model',required=True);p.add_argument('--images',required=True);p.add_argument('--output',default='benchmark.csv');p.add_argument('--imgsz',type=int,default=320);p.add_argument('--threads',type=int,default=4);a=p.parse_args();it=m.interpreter(a.model,a.threads);inp=it.get_input_details()[0];out=it.get_output_details()[0];rows=[]
+for f in [x for x in Path(a.images).rglob('*') if x.suffix.lower() in {'.jpg','.jpeg','.png','.bmp','.webp'}]:
+ im=cv2.imread(str(f));t=time.perf_counter();z,r,dx,dy=m.prep(im,a.imgsz);z=z.astype(np.float32)[None]/255;pre=(time.perf_counter()-t)*1000
+ if inp['dtype']==np.uint8:sc,zp=inp.get('quantization',(1/255,0));z=np.round(z/sc+zp).clip(0,255).astype(np.uint8)
+ it.set_tensor(inp['index'],z);t=time.perf_counter();it.invoke();inf=(time.perf_counter()-t)*1000;t=time.perf_counter();d=m.decode(m.dq(it.get_tensor(out['index']),out),.25);post=(time.perf_counter()-t)*1000;total=pre+inf+post;rows.append([f.name,pre,inf,post,total,1000/total,len(d)])
+Path(a.output).parent.mkdir(parents=True,exist_ok=True)
+with open(a.output,'w',newline='') as q: w=csv.writer(q);w.writerow(['image','pre_ms','inference_ms','post_ms','total_ms','fps','detections']);w.writerows(rows)
+v=np.array([r[4] for r in rows]);print('images',len(v),'mean_ms',v.mean(),'FPS',1000/v.mean())
+
+
+raspberry_pi/05_benchmark_resolutions.py
+
+#!/usr/bin/env python3
+import argparse,subprocess,sys
+from pathlib import Path
+p=argparse.ArgumentParser();p.add_argument('--model-dir',required=True);p.add_argument('--images',required=True);p.add_argument('--pattern',default='best_float16_{size}.tflite');p.add_argument('--resolutions',nargs='+',type=int,default=[320,416,512,640,800,960]);p.add_argument('--output-dir',default='results/resolutions');a=p.parse_args()
+for s in a.resolutions:
+ model=Path(a.model_dir)/a.pattern.format(size=s)
+ if not model.exists(): print('SKIP',model);continue
+ out=Path(a.output_dir)/f'{s}.csv';subprocess.run([sys.executable,str(Path(__file__).with_name('04_benchmark.py')),'--model',str(model),'--images',a.images,'--output',str(out),'--imgsz',str(s)],check=True)
+
+
+raspberry_pi/06_compare_threads.py
+
+#!/usr/bin/env python3
+import argparse,subprocess,sys
+from pathlib import Path
+p=argparse.ArgumentParser();p.add_argument('--model',required=True);p.add_argument('--images',required=True);p.add_argument('--imgsz',type=int,default=320);p.add_argument('--threads',nargs='+',type=int,default=[1,2,3,4]);p.add_argument('--output-dir',default='results/threads');a=p.parse_args()
+for n in a.threads: subprocess.run([sys.executable,str(Path(__file__).with_name('04_benchmark.py')),'--model',a.model,'--images',a.images,'--output',str(Path(a.output_dir)/f'{n}.csv'),'--imgsz',str(a.imgsz),'--threads',str(n)],check=True)
+
+
+raspberry_pi/07_memory_monitor.py
+
+#!/usr/bin/env python3
+import argparse,subprocess,time,csv,psutil
+from pathlib import Path
+p=argparse.ArgumentParser();p.add_argument('--interval',type=float,default=.5);p.add_argument('--output',default='memory.csv');p.add_argument('command',nargs=argparse.REMAINDER);a=p.parse_args();q=subprocess.Popen(a.command);rows=[]
+while q.poll() is None: rows.append([time.time(),psutil.virtual_memory().used/2**20,psutil.virtual_memory().percent]);time.sleep(a.interval)
+Path(a.output).parent.mkdir(parents=True,exist_ok=True)
+with open(a.output,'w',newline='') as f:w=csv.writer(f);w.writerow(['time','ram_used_mb','ram_percent']);w.writerows(rows)
+print('exit',q.returncode)
+
+
+raspberry_pi/08_image_preprocessing.py
+
+#!/usr/bin/env python3
+import argparse,time,csv,cv2,numpy as np
+from pathlib import Path
+from importlib.util import spec_from_file_location,module_from_spec
+s=spec_from_file_location('inf',Path(__file__).with_name('03_inference.py'));m=module_from_spec(s);s.loader.exec_module(m)
+p=argparse.ArgumentParser();p.add_argument('--images',required=True);p.add_argument('--imgsz',type=int,default=320);p.add_argument('--output',default='preprocessing.csv');a=p.parse_args();rows=[]
+for f in [x for x in Path(a.images).rglob('*') if x.suffix.lower() in {'.jpg','.jpeg','.png','.bmp','.webp'}]:
+ im=cv2.imread(str(f));t=time.perf_counter();z,_,_,_=m.prep(im,a.imgsz);z=z.astype(np.float32)/255;ms=(time.perf_counter()-t)*1000;rows.append([f.name,ms])
+with open(a.output,'w',newline='') as f:w=csv.writer(f);w.writerow(['image','preprocessing_ms']);w.writerows(rows)
+print('mean_ms',np.mean([x[1] for x in rows]))
+
+
+raspberry_pi/09_postprocessing.py
+
+#!/usr/bin/env python3
+import argparse,time,csv,cv2,numpy as np
+from pathlib import Path
+from importlib.util import spec_from_file_location,module_from_spec
+s=spec_from_file_location('inf',Path(__file__).with_name('03_inference.py'));m=module_from_spec(s);s.loader.exec_module(m)
+p=argparse.ArgumentParser();p.add_argument('--model',required=True);p.add_argument('--images',required=True);p.add_argument('--imgsz',type=int,default=320);p.add_argument('--output',default='postprocessing.csv');a=p.parse_args();it=m.interpreter(a.model,4);inp=it.get_input_details()[0];out=it.get_output_details()[0];rows=[]
+for f in [x for x in Path(a.images).rglob('*') if x.suffix.lower() in {'.jpg','.jpeg','.png','.bmp','.webp'}]:
+ im=cv2.imread(str(f));z,_,_,_=m.prep(im,a.imgsz);z=z.astype(np.float32)[None]/255
+ if inp['dtype']==np.uint8:sc,zp=inp.get('quantization',(1/255,0));z=np.round(z/sc+zp).clip(0,255).astype(np.uint8)
+ it.set_tensor(inp['index'],z);it.invoke();raw=m.dq(it.get_tensor(out['index']),out);t=time.perf_counter();d=m.decode(raw,.25);rows.append([f.name,(time.perf_counter()-t)*1000,len(d)])
+with open(a.output,'w',newline='') as f:w=csv.writer(f);w.writerow(['image','postprocessing_ms','detections']);w.writerows(rows)
+print('mean_ms',np.mean([x[1] for x in rows]))
+
+
+raspberry_pi/10_energy_measurement.py
+
+#!/usr/bin/env python3
+import argparse,csv,time
+from pathlib import Path
+p=argparse.ArgumentParser();p.add_argument('--voltage',type=float,required=True);p.add_argument('--current',type=float,required=True);p.add_argument('--duration',type=int,default=60);p.add_argument('--interval',type=float,default=1);p.add_argument('--output',default='energy.csv');a=p.parse_args();power=a.voltage*a.current;rows=[];t=time.time()
+while time.time()-t<a.duration: rows.append([time.time()-t,a.voltage,a.current,power]);time.sleep(a.interval)
+with open(a.output,'w',newline='') as f:w=csv.writer(f);w.writerow(['time_s','voltage_V','current_A','power_W']);w.writerows(rows)
+print('Power W:',power,'Energy Wh:',power*a.duration/3600)
+
+
+raspberry_pi/11_run_all_benchmarks.sh
+
+#!/bin/bash
+set -e
+MODEL="$1"; IMAGES="$2"; MODEL_DIR="$3"; OUT="${4:-results}"
+mkdir -p "$OUT"
+python3 04_benchmark.py --model "$MODEL" --images "$IMAGES" --output "$OUT/benchmark.csv" --imgsz 320 --threads 4
+python3 05_benchmark_resolutions.py --model-dir "$MODEL_DIR" --images "$IMAGES" --output-dir "$OUT/resolutions"
+python3 06_compare_threads.py --model "$MODEL" --images "$IMAGES" --output-dir "$OUT/threads"
+python3 08_image_preprocessing.py --images "$IMAGES" --output "$OUT/preprocessing.csv"
+python3 09_postprocessing.py --model "$MODEL" --images "$IMAGES" --output "$OUT/postprocessing.csv"
+
+
+web/app.py
+
+#!/usr/bin/env python3
+from pathlib import Path
+import os,uuid,cv2,numpy as np
+from flask import Flask,render_template,request,send_from_directory
+BASE=Path(__file__).resolve().parent; RESULTS=BASE/'results';RESULTS.mkdir(exist_ok=True);MODEL=os.getenv('MODEL_PATH',str(BASE.parent/'models'/'best_float16_320.tflite'))
+from importlib.util import spec_from_file_location,module_from_spec
+s=spec_from_file_location('inf',BASE.parent/'raspberry_pi'/'03_inference.py');m=module_from_spec(s);s.loader.exec_module(m);IT=m.interpreter(MODEL,4)
+app=Flask(__name__)
+@app.route('/',methods=['GET','POST'])
+def index():
+ result=None; error=None
+ if request.method=='POST':
+  f=request.files.get('image')
+  if not f: error='Aucune image.'
+  else:
+   name=uuid.uuid4().hex+'.jpg'; src=RESULTS/('src_'+name);out=RESULTS/name;f.save(src); img=cv2.imread(str(src));inp=IT.get_input_details()[0];z,_,_,_=m.prep(img,320);z=z.astype(np.float32)[None]/255;IT.set_tensor(inp['index'],z);IT.invoke();od=IT.get_output_details()[0];d=m.decode(m.dq(IT.get_tensor(od['index']),od),.25)
+   for x,y,w,h,sc,c in d: cv2.rectangle(img,(int(x-w/2),int(y-h/2)),(int(x+w/2),int(y+h/2)),(0,255,0),1)
+   cv2.imwrite(str(out),img);result={'image':name,'detections':len(d)}
+ return render_template('index.html',result=result,error=error)
+@app.route('/results/<name>')
+def result_file(name): return send_from_directory(RESULTS,name)
+if __name__=='__main__': app.run(host='0.0.0.0',port=5000)
+
+
+web/templates/index.html
+
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Paludisme Edge AI</title></head><body><h1>Détection des parasites du paludisme</h1><form method="post" enctype="multipart/form-data"><input type="file" name="image" accept="image/*" required><button>Analyser</button></form>{% if error %}<p>{{error}}</p>{% endif %}{% if result %}<h2>Résultat</h2><p>Détections : {{result.detections}}</p><img src="{{url_for('result_file',name=result.image)}}" style="max-width:90%">{% endif %}</body></html>
