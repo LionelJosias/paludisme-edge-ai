@@ -1,10 +1,43 @@
 cff-version: 1.2.0
-title: "Paludisme Edge AI — YOLOv8n Float16 sur Raspberry Pi 3 B+"
+
+title: "Paludisme Edge AI — Détection embarquée des parasites du paludisme avec YOLOv26n"
+
 type: software
-abstract: "Détection automatisée de cellules et parasites du paludisme dans des images de frottis sanguins épais, avec entraînement YOLOv8n et inférence Edge sur Raspberry Pi 3 B+."
-license: MIT
-version: 1.0.0
-date-released: 2026-08-28
+
+abstract: >
+  Projet académique consacré à la détection automatisée des parasites du
+  paludisme dans des images de frottis sanguins épais à l'aide de modèles
+  YOLO légers et de l'Edge Computing. Le projet couvre la préparation du
+  jeu de données, l'entraînement et l'évaluation de plusieurs architectures
+  YOLO, l'optimisation et l'exportation du modèle, ainsi que son déploiement
+  et son évaluation sur une Raspberry Pi 3 B+.
+
 authors:
-  - family-names: "Auteur"
-    given-names: "Projet académique"
+  - family-names: "N'DO"
+    given-names: "Yipènè Lionel Josias"
+
+repository-code: "https://github.com/LionelJosias/paludisme-edge-ai"
+
+license: MIT
+
+version: 1.0.0
+
+date-released: 2026-09-14
+
+keywords:
+  - malaria
+  - paludism
+  - parasite detection
+  - object detection
+  - YOLOv26n
+  - TinyML
+  - Edge AI
+  - Edge Computing
+  - Raspberry Pi
+  - embedded artificial intelligence
+  - TFLite
+  - LiteRT
+
+message: >
+  Si vous utilisez ce logiciel dans un travail académique ou scientifique,
+  veuillez citer ce dépôt ainsi que le mémoire associé.
